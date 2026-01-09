@@ -3,6 +3,8 @@ dist/
 build/
 .env
 .env.local
+.env.*
+!.env.example
 uploads/
 *.log
 .DS_Store
