@@ -67,6 +67,54 @@ const parseBankFormat = (rows, format) => {
       
       // 파싱된 금액을 amount 변수에 숫자로 저장하여 나중에 재사용
       amount = parsedAmountNum;
+    } else if (format === 'kakao') {
+      // 카카오뱅크 CSV 형식:
+      // 컬럼: 거래일시, 구분, 거래금액, 거래 후 잔액, 거래구분, 내용, 메모
+      // 구분: 출금, 입금
+      // 거래금액: 음수(-3,800) = 출금(지출), 양수(100) = 입금(수입)
+      // 거래구분: 자동이체(기타), 일반입금, 체크카드결제 등
+      
+      date = row['거래일시'] || row['거래 일시'] || row['거래일자'] || row['거래 일자'] || row['날짜'] || row['일자'];
+      description = row['내용'] || row['거래내용'] || row['거래 내용'] || row['적요'] || row['메모'];
+      amount = row['거래금액'] || row['거래 금액'] || row['금액'];
+      const division = row['구분'] || ''; // 출금, 입금
+      const transactionType = row['거래구분'] || row['거래 구분'] || ''; // 자동이체(기타), 일반입금, 체크카드결제 등
+      
+      // 금액 파싱 (음수 부호 보존)
+      const amountStr = String(amount || '').trim();
+      // 따옴표 제거 (CSV에서 "-3,800" 형식일 수 있음)
+      let cleanedAmount = amountStr.replace(/["']/g, '');
+      // 쉼표와 공백 제거 (음수 부호는 보존)
+      cleanedAmount = cleanedAmount.replace(/,/g, '').replace(/\s/g, '');
+      const parsedAmountNum = parseFloat(cleanedAmount);
+      
+      // 디버깅: 처음 10개만 로그 출력
+      if (index < 10) {
+        console.log(`[카카오뱅크 파싱 ${index + 1}] 원본: "${amount}", 정리: "${cleanedAmount}", 숫자: ${parsedAmountNum}, 구분: "${division}", 거래구분: "${transactionType}"`);
+      }
+      
+      // 입출금 판단: 구분 컬럼 우선, 없으면 금액 부호로 판단
+      if (division.includes('입금')) {
+        type = 'income';
+      } else if (division.includes('출금')) {
+        type = 'expense';
+      } else if (transactionType.includes('입금') || transactionType.includes('이자') || transactionType.includes('수익')) {
+        type = 'income';
+      } else if (transactionType.includes('출금') || transactionType.includes('이체') || transactionType.includes('결제') || transactionType.includes('체크카드')) {
+        type = 'expense';
+      } else {
+        // 금액 부호로 판단: 음수 = 지출, 양수 = 수입
+        if (parsedAmountNum < 0) {
+          type = 'expense';
+        } else if (parsedAmountNum > 0) {
+          type = 'income';
+        } else {
+          type = 'expense'; // 기본값
+        }
+      }
+      
+      // 파싱된 금액을 amount 변수에 숫자로 저장 (절댓값)
+      amount = Math.abs(parsedAmountNum);
     } else {
       // 공통 형식 (자동 감지)
       const keys = Object.keys(row);
@@ -77,11 +125,11 @@ const parseBankFormat = (rows, format) => {
       type = typeColumn.includes('출금') || typeColumn.includes('지출') || amount < 0 ? 'expense' : 'income';
     }
 
-    // 금액 정규화 (토스뱅크인 경우 이미 파싱됨)
+    // 금액 정규화 (토스뱅크/카카오뱅크인 경우 이미 파싱됨)
     let finalAmountNum = 0;
     
-    if (format === 'toss' && typeof amount === 'number') {
-      // 토스뱅크인 경우 이미 숫자로 파싱되어 있음
+    if ((format === 'toss' || format === 'kakao') && typeof amount === 'number') {
+      // 토스뱅크/카카오뱅크인 경우 이미 숫자로 파싱되어 있음
       finalAmountNum = amount;
     } else if (amount === null || amount === undefined || amount === '') {
       console.warn('금액이 없습니다:', row);
@@ -270,6 +318,13 @@ const categorizeTransaction = async (description, userId, transactionType) => {
       '의료/건강': [
         'CJ올리브영', '올리브영', '병원', '약국', '의료', '건강', '약', '치과', '안과', '한의원', '보건소'
       ],
+      // 교육
+      '교육': [
+        '학원', '교육', '수업', '강의', '교재', '교과서', '참고서', '문제집', '학습', '과외', 
+        '입시', '수능', '토익', '토플', '자격증', '시험', '교육비', '등록금', '수강료', 
+        '대학교', '대학', '학교', '초등학교', '중학교', '고등학교', '유치원', '어린이집',
+        '온라인강의', '인강', '에듀', '에듀케이션', '교육원', '학습지', '독서실', '스터디룸'
+      ],
       // 기타 (미용 등)
       '기타': [
         '리사헤어', '미용', '헤어', '미용실', '네일', '에스테틱'
@@ -287,9 +342,9 @@ const categorizeTransaction = async (description, userId, transactionType) => {
 
     const descLower = String(description || '').toLowerCase();
     
-    // 우선순위: 식비 > 교통비 > 문화/여가 > 쇼핑 > 의료/건강 > 보험 > 주거/통신 > 기타
+    // 우선순위: 식비 > 교통비 > 문화/여가 > 쇼핑 > 의료/건강 > 교육 > 보험 > 주거/통신 > 기타
     // 정확한 매칭을 위해 긴 키워드부터 확인
-    const priorityOrder = ['식비', '교통비', '문화/여가', '쇼핑', '의료/건강', '보험', '주거/통신', '기타'];
+    const priorityOrder = ['식비', '교통비', '문화/여가', '쇼핑', '의료/건강', '교육', '보험', '주거/통신', '기타'];
     
     // 각 카테고리별로 키워드를 긴 것부터 정렬하여 정확한 매칭 우선
     for (const categoryName of priorityOrder) {
@@ -373,11 +428,11 @@ export const uploadCSV = async (req, res) => {
         .on('data', (row) => {
           rawRows.push(row);
           
-          // 헤더 행 찾기 (거래 일시가 포함된 행)
+          // 헤더 행 찾기 (거래 일시 또는 거래일시가 포함된 행)
           const rowValues = Object.values(row);
           const rowString = rowValues.join(',');
           
-          if (!headerFound && (rowString.includes('거래 일시') || rowString.includes('거래일시'))) {
+          if (!headerFound && (rowString.includes('거래 일시') || rowString.includes('거래일시') || rowString.includes('거래일자'))) {
             headerFound = true;
             headerRowIndex = rawRows.length - 1;
           }
@@ -411,8 +466,10 @@ export const uploadCSV = async (req, res) => {
                 }
               });
               
-              // 거래 일시와 거래 금액이 있는 경우만 추가 (실제 거래 데이터)
-              if (rowObj['거래 일시'] && rowObj['거래 금액']) {
+              // 거래 일시/거래일시와 거래 금액/거래금액이 있는 경우만 추가 (실제 거래 데이터)
+              const hasDate = rowObj['거래 일시'] || rowObj['거래일시'] || rowObj['거래일자'];
+              const hasAmount = rowObj['거래 금액'] || rowObj['거래금액'];
+              if (hasDate && hasAmount) {
                 results.push(rowObj);
               }
             }

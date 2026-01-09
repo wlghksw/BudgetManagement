@@ -11,13 +11,14 @@
         <div class="usage-guide">
           <h3>📋 사용 방법</h3>
           <ol>
-            <li><strong>토스뱅크 앱</strong>에서 거래내역 내보내기
+            <li><strong>은행 앱</strong>에서 거래내역 내보내기
               <ul>
-                <li>토스뱅크 앱 → 거래내역 → 내보내기 → CSV 파일 다운로드</li>
+                <li><strong>토스뱅크:</strong> 토스뱅크 앱 → 거래내역 → 내보내기 → CSV 파일 다운로드</li>
+                <li><strong>카카오뱅크:</strong> 카카오뱅크 앱 → 거래내역 → 내보내기 → CSV 파일 다운로드</li>
               </ul>
             </li>
             <li><strong>CSV 파일</strong>을 아래 영역에 드래그하거나 클릭하여 선택</li>
-            <li><strong>은행 형식</strong>을 선택 (토스뱅크 선택 권장)</li>
+            <li><strong>은행 형식</strong>을 선택 (토스뱅크 또는 카카오뱅크)</li>
             <li><strong>미리보기</strong>에서 거래 내역 확인</li>
             <li><strong>저장하기</strong> 버튼 클릭하여 거래 내역 추가</li>
           </ol>
@@ -52,6 +53,7 @@
           <select v-model="bankFormat">
             <option value="auto">자동 감지</option>
             <option value="toss">토스뱅크</option>
+            <option value="kakao">카카오뱅크</option>
           </select>
         </div>
 
