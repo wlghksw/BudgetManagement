@@ -94,7 +94,7 @@ const handleRegister = async () => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
 }
 
 .auth-card {
@@ -136,13 +136,13 @@ const handleRegister = async () => {
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #10b981;
 }
 
 .btn-primary {
   width: 100%;
   padding: 0.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   color: white;
   border: none;
   border-radius: 6px;
@@ -177,7 +177,7 @@ const handleRegister = async () => {
 }
 
 .auth-link a {
-  color: #667eea;
+  color: #10b981;
   text-decoration: none;
   font-weight: 600;
 }

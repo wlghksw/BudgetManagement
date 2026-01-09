@@ -2,6 +2,7 @@ import Category from '../models/Category.js';
 
 const defaultCategories = [
   // 지출 카테고리
+  { name: '적금', type: 'expense', icon: '💰', color: '#10b981', isDefault: true },
   { name: '식비', type: 'expense', icon: '🍽️', color: '#ef4444', isDefault: true },
   { name: '교통비', type: 'expense', icon: '🚗', color: '#3b82f6', isDefault: true },
   { name: '쇼핑', type: 'expense', icon: '🛍️', color: '#8b5cf6', isDefault: true },
@@ -9,6 +10,7 @@ const defaultCategories = [
   { name: '교육', type: 'expense', icon: '📚', color: '#f59e0b', isDefault: true },
   { name: '문화/여가', type: 'expense', icon: '🎬', color: '#ec4899', isDefault: true },
   { name: '주거/통신', type: 'expense', icon: '🏠', color: '#6366f1', isDefault: true },
+  { name: '보험', type: 'expense', icon: '🛡️', color: '#f97316', isDefault: true },
   { name: '기타', type: 'expense', icon: '📦', color: '#6b7280', isDefault: true },
   // 수입 카테고리
   { name: '급여', type: 'income', icon: '💰', color: '#10b981', isDefault: true },
@@ -129,24 +131,54 @@ export const createDefaultCategories = async (req, res) => {
 
     // 기존 기본 카테고리 확인
     const existingCategories = await Category.find({ userId, isDefault: true });
-    if (existingCategories.length > 0) {
+    const existingNames = existingCategories.map(cat => cat.name);
+
+    // 누락된 기본 카테고리 찾기
+    const missingCategories = defaultCategories.filter(
+      cat => !existingNames.includes(cat.name)
+    );
+
+    if (missingCategories.length === 0 && existingCategories.length > 0) {
       return res.json({
-        message: '기본 카테고리가 이미 생성되어 있습니다.',
+        message: '모든 기본 카테고리가 이미 생성되어 있습니다.',
         categories: existingCategories
       });
     }
 
-    // 기본 카테고리 생성
-    const categories = defaultCategories.map(cat => ({
+    // 누락된 카테고리만 생성
+    const categoriesToCreate = missingCategories.map(cat => ({
       ...cat,
       userId
     }));
 
-    const createdCategories = await Category.insertMany(categories);
+    let createdCategories = [];
+    if (categoriesToCreate.length > 0) {
+      try {
+        createdCategories = await Category.insertMany(categoriesToCreate, { ordered: false });
+      } catch (error) {
+        // 중복 에러는 무시 (다른 프로세스에서 동시에 생성한 경우)
+        if (error.code !== 11000) {
+          throw error;
+        }
+        // 중복 에러 발생 시에도 생성된 것은 조회
+        const allCategories = await Category.find({ userId, isDefault: true });
+        return res.json({
+          message: '기본 카테고리가 생성되었습니다. (일부는 이미 존재했습니다)',
+          categories: allCategories,
+          created: categoriesToCreate.length
+        });
+      }
+    }
+
+    // 모든 기본 카테고리 조회
+    const allCategories = await Category.find({ userId, isDefault: true }).sort({ name: 1 });
 
     res.status(201).json({
-      message: '기본 카테고리가 생성되었습니다.',
-      categories: createdCategories
+      message: missingCategories.length > 0 
+        ? `${missingCategories.length}개의 기본 카테고리가 추가되었습니다.`
+        : '기본 카테고리가 생성되었습니다.',
+      categories: allCategories,
+      created: createdCategories.length
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

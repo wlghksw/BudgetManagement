@@ -127,21 +127,143 @@ export const getBudgetsByMonth = async (req, res) => {
       return res.status(400).json({ error: '월과 연도가 필요합니다.' });
     }
 
+    const monthNum = parseInt(month);
+    const yearNum = parseInt(year);
+
+    console.log(`[getBudgetsByMonth] 요청: userId=${userId}, year=${yearNum}, month=${monthNum}`);
+
     const budgets = await Budget.find({
       userId,
-      month: parseInt(month),
-      year: parseInt(year)
+      month: monthNum,
+      year: yearNum
     })
       .populate('categoryId', 'name icon color')
       .sort({ amount: -1 });
+
+    console.log(`[getBudgetsByMonth] 찾은 예산 수: ${budgets.length}개`);
 
     // spent 값 업데이트
     for (const budget of budgets) {
       await budget.updateSpent();
     }
 
+    console.log(`[getBudgetsByMonth] 응답: ${budgets.length}개 예산 반환`);
     res.json(budgets);
   } catch (error) {
+    console.error('[getBudgetsByMonth] 에러:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 월급 기반 자동 예산 생성
+export const createBudgetsFromSalary = async (req, res) => {
+  try {
+    const { month, year } = req.body;
+    const userId = req.user._id;
+    const User = (await import('../models/User.js')).default;
+
+    // 사용자 정보 조회
+    const user = await User.findById(userId);
+    if (!user || !user.salary) {
+      return res.status(400).json({ error: '월급이 설정되지 않았습니다. 프로필에서 월급을 먼저 설정해주세요.' });
+    }
+
+    const monthNum = month || new Date().getMonth() + 1;
+    const yearNum = year || new Date().getFullYear();
+
+    // 카테고리 이름과 분배 키 매핑
+    const categoryMapping = {
+      '적금': 'savings',
+      '보험': 'insurance',
+      '주거/통신': 'living',
+      '식비': 'food',
+      '교통비': 'transportation',
+      '쇼핑': 'shopping',
+      '문화/여가': 'culture',
+      '기타': 'other'
+    };
+
+    const allocation = user.budgetAllocation || {
+      savings: 20,
+      insurance: 10,
+      living: 15,
+      food: 25,
+      transportation: 8,
+      shopping: 10,
+      culture: 7,
+      other: 5
+    };
+
+    // 비율 합계 확인
+    const totalPercentage = Object.values(allocation).reduce((sum, val) => sum + val, 0);
+    if (Math.abs(totalPercentage - 100) > 1) {
+      return res.status(400).json({ 
+        error: `예산 분배 비율의 합이 100%가 아닙니다. (현재: ${totalPercentage}%)` 
+      });
+    }
+
+    const createdBudgets = [];
+    const updatedBudgets = [];
+
+    // 각 카테고리별로 예산 생성/업데이트
+    for (const [categoryName, allocationKey] of Object.entries(categoryMapping)) {
+      const category = await Category.findOne({ 
+        userId, 
+        name: categoryName, 
+        type: 'expense' 
+      });
+
+      if (!category) {
+        console.log(`[월급 기반 예산 생성] 카테고리 "${categoryName}"를 찾을 수 없습니다. 건너뜁니다.`);
+        continue;
+      }
+
+      const percentage = allocation[allocationKey] || 0;
+      const amount = Math.round((user.salary * percentage) / 100);
+
+      if (amount <= 0) continue;
+
+      // 기존 예산 확인
+      let budget = await Budget.findOne({
+        userId,
+        categoryId: category._id,
+        month: monthNum,
+        year: yearNum
+      });
+
+      if (budget) {
+        // 기존 예산 업데이트
+        budget.amount = amount;
+        await budget.save();
+        await budget.updateSpent();
+        await budget.populate('categoryId', 'name icon color');
+        updatedBudgets.push(budget);
+        console.log(`[월급 기반 예산 생성] ${categoryName}: ${amount.toLocaleString()}원 (업데이트)`);
+      } else {
+        // 새 예산 생성
+        budget = new Budget({
+          userId,
+          categoryId: category._id,
+          amount,
+          month: monthNum,
+          year: yearNum
+        });
+        await budget.save();
+        await budget.updateSpent();
+        await budget.populate('categoryId', 'name icon color');
+        createdBudgets.push(budget);
+        console.log(`[월급 기반 예산 생성] ${categoryName}: ${amount.toLocaleString()}원 (생성)`);
+      }
+    }
+
+    res.status(201).json({
+      message: `월급 ${user.salary.toLocaleString()}원 기준으로 ${createdBudgets.length}개 예산이 생성되고 ${updatedBudgets.length}개 예산이 업데이트되었습니다.`,
+      created: createdBudgets.length,
+      updated: updatedBudgets.length,
+      budgets: [...createdBudgets, ...updatedBudgets]
+    });
+  } catch (error) {
+    console.error('[월급 기반 예산 생성] 에러:', error);
     res.status(500).json({ error: error.message });
   }
 };

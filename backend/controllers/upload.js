@@ -182,6 +182,7 @@ const categorizeTransaction = async (description, userId, transactionType) => {
   if (categories.length === 0) {
     const defaultCategories = [
       // 지출 카테고리
+      { name: '적금', type: 'expense', icon: '💰', color: '#10b981', isDefault: true },
       { name: '식비', type: 'expense', icon: '🍽️', color: '#ef4444', isDefault: true },
       { name: '교통비', type: 'expense', icon: '🚗', color: '#3b82f6', isDefault: true },
       { name: '쇼핑', type: 'expense', icon: '🛍️', color: '#8b5cf6', isDefault: true },
@@ -189,6 +190,7 @@ const categorizeTransaction = async (description, userId, transactionType) => {
       { name: '교육', type: 'expense', icon: '📚', color: '#f59e0b', isDefault: true },
       { name: '문화/여가', type: 'expense', icon: '🎬', color: '#ec4899', isDefault: true },
       { name: '주거/통신', type: 'expense', icon: '🏠', color: '#6366f1', isDefault: true },
+      { name: '보험', type: 'expense', icon: '🛡️', color: '#f97316', isDefault: true },
       { name: '기타', type: 'expense', icon: '📦', color: '#6b7280', isDefault: true },
       // 수입 카테고리
       { name: '급여', type: 'income', icon: '💰', color: '#10b981', isDefault: true },
@@ -275,14 +277,19 @@ const categorizeTransaction = async (description, userId, transactionType) => {
       '주거/통신': [
         '전기', '가스', '수도', '인터넷', '통신', '핸드폰', '월세', '관리비', 'KT', 'SKT', 'LG',
         '통신비', '요금', '공과금'
+      ],
+      '보험': [
+        '보험', '생명보험', '손해보험', '건강보험', '자동차보험', '화재보험', '삼성생명', '교보생명',
+        '한화생명', '동부화재', '현대해상', 'DB손해보험', 'KB손해보험', 'NH농협생명', '신한생명',
+        '보험료', '보험금', '보험사'
       ]
     };
 
     const descLower = String(description || '').toLowerCase();
     
-    // 우선순위: 식비 > 교통비 > 문화/여가 > 쇼핑 > 의료/건강 > 기타 > 주거/통신
+    // 우선순위: 식비 > 교통비 > 문화/여가 > 쇼핑 > 의료/건강 > 보험 > 주거/통신 > 기타
     // 정확한 매칭을 위해 긴 키워드부터 확인
-    const priorityOrder = ['식비', '교통비', '문화/여가', '쇼핑', '의료/건강', '기타', '주거/통신'];
+    const priorityOrder = ['식비', '교통비', '문화/여가', '쇼핑', '의료/건강', '보험', '주거/통신', '기타'];
     
     // 각 카테고리별로 키워드를 긴 것부터 정렬하여 정확한 매칭 우선
     for (const categoryName of priorityOrder) {
@@ -619,27 +626,61 @@ export const saveUploadedTransactions = async (req, res) => {
     // 일괄 저장
     const savedTransactions = await Transaction.insertMany(transactions);
 
-    // 예산 업데이트
-    const categoryIds = [...new Set(transactions.map(tx => tx.categoryId.toString()))];
-    for (const categoryId of categoryIds) {
-      const categoryTransactions = transactions.filter(tx => 
-        tx.categoryId.toString() === categoryId && tx.type === 'expense'
-      );
-
-      for (const tx of categoryTransactions) {
-        const date = new Date(tx.date);
+    // 예산 업데이트 (카테고리/월별로 한 번만 업데이트)
+    const budgetKeys = new Set();
+    const expenseTransactions = transactions.filter(tx => tx.type === 'expense');
+    
+    console.log(`[CSV 저장] 지출 거래 ${expenseTransactions.length}건 중 예산 업데이트 시작`);
+    
+    // 모든 지출 거래의 날짜와 카테고리 정보 로깅
+    expenseTransactions.slice(0, 5).forEach((tx, idx) => {
+      const date = new Date(tx.date);
+      console.log(`[CSV 저장] 거래 ${idx + 1}: 날짜=${date.toISOString()}, 연도=${date.getFullYear()}, 월=${date.getMonth() + 1}, 카테고리ID=${tx.categoryId}`);
+    });
+    
+    for (const tx of expenseTransactions) {
+      const date = new Date(tx.date);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const categoryId = tx.categoryId.toString();
+      const key = `${categoryId}-${year}-${month}`;
+      
+      // 이미 업데이트한 예산은 건너뛰기
+      if (!budgetKeys.has(key)) {
+        budgetKeys.add(key);
+        
+        console.log(`[CSV 저장] 예산 찾기: userId=${userId}, categoryId=${categoryId} (타입: ${typeof tx.categoryId}), year=${year}, month=${month}`);
+        
+        // categoryId를 ObjectId로 변환하여 검색
+        const mongoose = (await import('mongoose')).default;
+        const categoryObjectId = typeof tx.categoryId === 'string' 
+          ? new mongoose.Types.ObjectId(tx.categoryId)
+          : tx.categoryId;
+        
         const budget = await Budget.findOne({
           userId,
-          categoryId,
-          year: date.getFullYear(),
-          month: date.getMonth() + 1
+          categoryId: categoryObjectId,
+          year,
+          month
         });
 
         if (budget) {
+          const beforeSpent = budget.spent;
           await budget.updateSpent();
+          const afterSpent = budget.spent;
+          console.log(`[CSV 저장] ✅ 예산 업데이트 완료: ${year}년 ${month}월 카테고리 ${categoryId}, spent: ${beforeSpent} → ${afterSpent}`);
+        } else {
+          console.log(`[CSV 저장] ⚠️ 예산 없음: ${year}년 ${month}월 카테고리 ${categoryId}에 대한 예산이 설정되지 않음`);
+          // 해당 카테고리의 예산이 있는지 확인
+          const allBudgets = await Budget.find({ userId, categoryId: categoryObjectId });
+          if (allBudgets.length > 0) {
+            console.log(`[CSV 저장] 💡 같은 카테고리의 다른 월 예산: ${allBudgets.map(b => `${b.year}년 ${b.month}월`).join(', ')}`);
+          }
         }
       }
     }
+    
+    console.log(`[CSV 저장 완료] ${savedTransactions.length}건 저장, ${budgetKeys.size}개 예산 업데이트 시도`);
 
     res.json({
       message: `${savedTransactions.length}건의 거래가 추가되었습니다.`,

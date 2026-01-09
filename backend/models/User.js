@@ -40,6 +40,45 @@ const userSchema = new mongoose.Schema({
       type: Number,
       default: 80 // 80% 도달시 알림
     }
+  },
+  salary: {
+    type: Number,
+    default: null // 실수령액
+  },
+  budgetAllocation: {
+    // 월급에서 각 카테고리별 분배 비율 (%)
+    savings: {
+      type: Number,
+      default: 20 // 적금 20%
+    },
+    insurance: {
+      type: Number,
+      default: 10 // 보험 10%
+    },
+    living: {
+      type: Number,
+      default: 15 // 생활비 15%
+    },
+    food: {
+      type: Number,
+      default: 25 // 식비 25%
+    },
+    transportation: {
+      type: Number,
+      default: 8 // 교통비 8%
+    },
+    shopping: {
+      type: Number,
+      default: 10 // 쇼핑 10%
+    },
+    culture: {
+      type: Number,
+      default: 7 // 문화/여가 7%
+    },
+    other: {
+      type: Number,
+      default: 5 // 기타 5%
+    }
   }
 }, {
   timestamps: true

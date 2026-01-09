@@ -223,7 +223,7 @@ onMounted(() => {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   color: white;
 }
 

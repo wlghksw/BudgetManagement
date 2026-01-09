@@ -85,7 +85,7 @@ export const getProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { name, currency, language, notificationSettings } = req.body;
+    const { name, currency, language, notificationSettings, salary, budgetAllocation } = req.body;
     const user = await User.findById(req.user._id);
 
     if (name) user.name = name;
@@ -93,6 +93,10 @@ export const updateProfile = async (req, res) => {
     if (language) user.language = language;
     if (notificationSettings) {
       user.notificationSettings = { ...user.notificationSettings, ...notificationSettings };
+    }
+    if (salary !== undefined) user.salary = salary;
+    if (budgetAllocation) {
+      user.budgetAllocation = { ...user.budgetAllocation, ...budgetAllocation };
     }
 
     await user.save();
@@ -105,7 +109,9 @@ export const updateProfile = async (req, res) => {
         name: user.name,
         currency: user.currency,
         language: user.language,
-        notificationSettings: user.notificationSettings
+        notificationSettings: user.notificationSettings,
+        salary: user.salary,
+        budgetAllocation: user.budgetAllocation
       }
     });
   } catch (error) {

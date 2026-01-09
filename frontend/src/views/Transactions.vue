@@ -62,8 +62,12 @@
           {{ tx.type === 'income' ? '+' : '-' }}{{ formatCurrency(tx.amount) }}
         </div>
         <div class="transaction-actions">
-          <button @click="editTransaction(tx)" class="icon-btn">✏️</button>
-          <button @click="deleteTransaction(tx._id)" class="icon-btn">🗑️</button>
+          <button @click="editTransaction(tx)" class="icon-btn">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button @click="deleteTransaction(tx._id)" class="icon-btn">
+            <i class="fas fa-trash"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -172,9 +176,11 @@ const closeModal = () => {
   editingTx.value = null;
 };
 
-const handleTransactionSaved = () => {
-  loadTransactions();
+const handleTransactionSaved = async () => {
+  await loadTransactions();
   closeModal();
+  // 거래 내역이 변경되면 예산도 업데이트되므로 페이지 새로고침 권장
+  // 또는 부모 컴포넌트에서 예산을 다시 불러오도록 이벤트 전달
 };
 
 onMounted(() => {
@@ -237,13 +243,38 @@ onMounted(() => {
 }
 
 .transaction-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.transaction-icon::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.transaction-item:hover .transaction-icon {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.transaction-item:hover .transaction-icon::before {
+  opacity: 1;
 }
 
 .transaction-info {
@@ -279,17 +310,28 @@ onMounted(() => {
 }
 
 .icon-btn {
-  background: none;
+  background: #f3f4f6;
   border: none;
-  font-size: 1.2rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  padding: 0.6rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
 }
 
 .icon-btn:hover {
-  background-color: #f3f4f6;
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.icon-btn i {
+  font-size: 0.9rem;
 }
 
 .empty-state {
@@ -299,7 +341,7 @@ onMounted(() => {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;

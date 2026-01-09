@@ -172,10 +172,14 @@ const handleSave = async () => {
   error.value = '';
 
   try {
-    await api.post('/upload/save', { transactions: uploadData.value });
+    console.log(`[UploadModal] CSV 저장 시작: ${uploadData.value.length}건의 거래`);
+    const response = await api.post('/upload/save', { transactions: uploadData.value });
+    console.log(`[UploadModal] CSV 저장 완료: ${response.data.message}`);
+    console.log(`[UploadModal] 저장된 거래 수: ${response.data.count}건`);
     emit('uploaded');
     emit('close');
   } catch (err) {
+    console.error('[UploadModal] CSV 저장 실패:', err);
     error.value = err.response?.data?.error || '저장에 실패했습니다.';
   } finally {
     loading.value = false;
@@ -295,8 +299,8 @@ const formatDate = (date) => {
 
 .drop-zone:hover,
 .drop-zone.dragover {
-  border-color: #667eea;
-  background-color: #f0f4ff;
+  border-color: #10b981;
+  background-color: #ecfdf5;
 }
 
 .file-info {
@@ -379,7 +383,7 @@ const formatDate = (date) => {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   color: white;
 }
 

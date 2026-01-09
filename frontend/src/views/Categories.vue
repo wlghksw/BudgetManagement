@@ -43,13 +43,15 @@
           <p v-if="cat.isDefault" class="default-badge">기본</p>
         </div>
         <div class="category-actions">
-          <button @click="editCategory(cat)" class="icon-btn">✏️</button>
+          <button @click="editCategory(cat)" class="icon-btn">
+            <i class="fas fa-edit"></i>
+          </button>
           <button
             v-if="!cat.isDefault"
             @click="deleteCategory(cat._id)"
             class="icon-btn"
           >
-            🗑️
+            <i class="fas fa-trash"></i>
           </button>
         </div>
       </div>
@@ -89,14 +91,15 @@ const loadCategories = async () => {
 };
 
 const createDefaultCategories = async () => {
-  if (!confirm("기본 카테고리를 생성하시겠습니까?")) return;
+  if (!confirm("누락된 기본 카테고리를 추가하시겠습니까?\n(이미 있는 카테고리는 건너뜁니다.)")) return;
 
   try {
-    await api.get("/categories/default");
-    alert("기본 카테고리가 생성되었습니다.");
+    const response = await api.get("/categories/default");
+    const message = response.data.message || "기본 카테고리가 생성되었습니다.";
+    alert(message);
     loadCategories();
   } catch (error) {
-    alert("기본 카테고리 생성에 실패했습니다.");
+    alert("기본 카테고리 생성에 실패했습니다: " + (error.response?.data?.error || error.message));
   }
 };
 
@@ -159,7 +162,7 @@ onMounted(() => {
 }
 
 .tab-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   color: white;
   border-color: transparent;
 }
@@ -215,21 +218,32 @@ onMounted(() => {
 }
 
 .icon-btn {
-  background: none;
+  background: #f3f4f6;
   border: none;
-  font-size: 1.2rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  padding: 0.6rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
 }
 
 .icon-btn:hover {
-  background-color: #f3f4f6;
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.icon-btn i {
+  font-size: 0.9rem;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;

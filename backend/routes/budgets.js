@@ -5,7 +5,8 @@ import {
   createBudget,
   updateBudget,
   deleteBudget,
-  getBudgetsByMonth
+  getBudgetsByMonth,
+  createBudgetsFromSalary
 } from '../controllers/budgets.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -15,6 +16,7 @@ router.use(authenticate);
 
 router.get('/', getBudgets);
 router.get('/month', getBudgetsByMonth);
+router.post('/from-salary', createBudgetsFromSalary);
 router.get('/:id', getBudget);
 router.post('/', createBudget);
 router.put('/:id', updateBudget);
