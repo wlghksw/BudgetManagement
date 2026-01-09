@@ -4,10 +4,10 @@
       <div class="nav-container">
         <router-link to="/" class="logo">💰 예산 관리</router-link>
         <div class="nav-links">
-          <router-link to="/">대시보드</router-link>
-          <router-link to="/transactions">거래 내역</router-link>
-          <router-link to="/budgets">예산 관리</router-link>
-          <router-link to="/categories">카테고리</router-link>
+          <router-link to="/" @click="handleNavClick">대시보드</router-link>
+          <router-link to="/transactions" @click="handleNavClick">거래 내역</router-link>
+          <router-link to="/budgets" @click="handleNavClick">예산 관리</router-link>
+          <router-link to="/categories" @click="handleNavClick">카테고리</router-link>
           <button @click="handleLogout" class="logout-btn">로그아웃</button>
         </div>
       </div>
@@ -31,6 +31,11 @@ const isAuthenticated = computed(() => authStore.isAuthenticated);
 const handleLogout = () => {
   authStore.logout();
   router.push('/login');
+};
+
+const handleNavClick = (event) => {
+  // 네비게이션 클릭 이벤트 확인용 (디버깅)
+  console.log('Navigation clicked:', event.target.textContent);
 };
 </script>
 
@@ -56,6 +61,9 @@ body {
   color: white;
   padding: 1rem 0;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .nav-container {
@@ -86,11 +94,19 @@ body {
   padding: 0.5rem 1rem;
   border-radius: 6px;
   transition: background-color 0.2s;
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  z-index: 1;
 }
 
 .nav-links a:hover,
 .nav-links a.router-link-active {
   background-color: rgba(255, 255, 255, 0.2);
+}
+
+.nav-links a:active {
+  transform: scale(0.98);
 }
 
 .logout-btn {

@@ -26,6 +26,7 @@ Vue.js 기반 개인 재무 관리 애플리케이션
 ## 빠른 시작
 
 ### 1. 필수 요구사항
+
 - Node.js 18 이상
 - MongoDB (로컬 또는 Atlas)
 
@@ -47,6 +48,7 @@ npm run dev
 ```
 
 ### 3. 접속
+
 - 프론트엔드: http://localhost:5173
 - 백엔드 API: http://localhost:3000
 
@@ -63,7 +65,19 @@ MONGODB_URI=mongodb://localhost:27017/budget-app
 
 PORT=3000
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Claude API 키 (선택사항 - AI 카테고리 분류 사용 시)
+# https://console.anthropic.com/ 에서 발급받으세요
+CLAUDE_API_KEY=your-claude-api-key-here
 ```
+
+## AI 카테고리 자동 분류
+
+Claude API를 사용하여 거래 내역을 자동으로 적절한 카테고리로 분류할 수 있습니다.
+
+- **설정**: `backend/.env`에 `CLAUDE_API_KEY` 추가
+- **작동**: API 키가 있으면 AI 분류 우선, 없으면 키워드 기반 분류 사용
+- **자세한 설정**: [AI_CLASSIFICATION.md](./AI_CLASSIFICATION.md) 참고
 
 ## 프로젝트 구조
 
@@ -102,6 +116,7 @@ ManagementApp/
 ## CSV 업로드 형식
 
 토스뱅크 CSV 파일을 지원합니다:
+
 - 컬럼: 거래 일시, 적요, 거래 유형, 거래 금액 등
 - 음수 금액 = 지출, 양수 금액 = 수입
 - 자동 카테고리 분류 지원
@@ -113,5 +128,3 @@ MIT
 ## 기여
 
 이슈 및 풀 리퀘스트 환영합니다!
-
-
